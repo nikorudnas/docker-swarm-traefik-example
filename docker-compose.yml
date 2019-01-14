@@ -93,8 +93,11 @@ services:
           memory: 50M
       labels:
         - "traefik.backend=datastore-client"
-        - "traefik.frontend.rule=Host:jaws.biz"
+        - "traefik.frontend.rule=Host:jaws.biz,www.jaws.biz"
         - "traefik.port=80"
+        - "traefik.frontend.headers.SSLRedirect=true"
+        - "traefik.frontend.headers.SSLHost=jaws.biz"
+        - "traefik.frontend.headers.SSLForceHost=true"
     networks:
       - proxy
 
