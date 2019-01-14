@@ -6,8 +6,6 @@ services:
   reverse-proxy:
     image: traefik
     command:
-      # Add 'www' -redirect to https
-      # Add redirect for all 'wrong' -requests to https://jaws.biz
       - "--logLevel=DEBUG"
       - "--api"
       - "--defaultentrypoints=https"
@@ -42,6 +40,8 @@ services:
         - "traefik.port=8080"
         # ubuntu - Traefik123
         - "traefik.frontend.auth.basic.users=ubuntu:$$apr1$$80PJRERI$$grh9vslfhzyx4fPt9i3mt."
+        # - traefik.frontend.redirect.regex=^https?://www.jaws.biz/(.*)
+        # - traefik.frontend.redirect.replacement=https://jaws.biz/$${1}
     ports:
       - target: 80
         published: 80
