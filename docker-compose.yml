@@ -1,6 +1,5 @@
 # Remember to create the required files (acme.json) and networks before running this
 # sudo touch acme.json -> sudo chmod 600 acme.json
-# docker network create -d overlay proxy
 version: "3.3"
 
 services:
@@ -13,7 +12,7 @@ services:
       - "--api"
       - "--defaultentrypoints=https"
       - "--entrypoints=Name:http Address::80 Redirect.EntryPoint:https"
-      - "--entrypoints=Name:https Address::443 TLS"
+      - "--entrypoints=Name:https Address::443 Compress:true TLS"
       - "--acme"
       - "--acme.storage=/etc/traefik/acme.json"
       - "--acme.domains=jaws.biz,traefik.jaws.biz,api.jaws.biz,visualizer.jaws.biz,db.jaws.biz"
@@ -42,7 +41,7 @@ services:
         - "traefik.frontend.rule=Host:traefik.jaws.biz"
         - "traefik.port=8080"
         # ubuntu - Traefik123
-        - "traefik.frontend.auth.basic=ubuntu:$$apr1$$80PJRERI$$grh9vslfhzyx4fPt9i3mt."
+        - "traefik.frontend.auth.basic.users=ubuntu:$$apr1$$80PJRERI$$grh9vslfhzyx4fPt9i3mt."
     ports:
       - target: 80
         published: 80
@@ -51,8 +50,6 @@ services:
         published: 443
         mode: host
     networks:
-      # The internal should not be here. Remove later
-      - internal
       - proxy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -60,8 +57,6 @@ services:
 
   datastore-server:
     image: jaws404/datastore-server
-    depends_on:
-      - mongo
     deploy:
       replicas: 2
       update_config:
@@ -73,19 +68,18 @@ services:
         - "traefik.backend=datastore-server"
         - "traefik.frontend.rule=Host:api.jaws.biz"
         - "traefik.port=3001"
+        - "traefik.docker.network=jawz_proxy"
         # Rate limit
         - "traefik.frontend.rateLimit.extractorFunc=client.ip"
         - "traefik.frontend.rateLimit.rateSet.r1.period=3s"
-        - "traefik.frontend.rateLimit.rateSet.r1.average=5"
-        - "traefik.frontend.rateLimit.rateSet.r1.burst=10"
+        - "traefik.frontend.rateLimit.rateSet.r1.average=10"
+        - "traefik.frontend.rateLimit.rateSet.r1.burst=30"
     networks:
       - internal
       - proxy
 
   datastore-client:
     image: jaws404/datastore-client
-    depends_on:
-      - datastore-server
     deploy:
       replicas: 2
       update_config:
@@ -101,20 +95,11 @@ services:
         - "traefik.backend=datastore-client"
         - "traefik.frontend.rule=Host:jaws.biz"
         - "traefik.port=80"
-        # Rate limit
-        - "traefik.frontend.rateLimit.extractorFunc=client.ip"
-        - "traefik.frontend.rateLimit.rateSet.r1.period=3s"
-        - "traefik.frontend.rateLimit.rateSet.r1.average=5"
-        - "traefik.frontend.rateLimit.rateSet.r1.burst=10"
     networks:
-      # The internal should not be here. Remove later
-      - internal
       - proxy
 
   mongo:
     image: mvertes/alpine-mongo
-    depends_on:
-      - reverse-proxy
     deploy:
       placement:
         constraints: [node.role == manager]
@@ -131,8 +116,6 @@ services:
 
   visualizer:
     image: dockersamples/visualizer
-    depends_on:
-      - reverse-proxy
     deploy:
       placement:
         constraints: [node.role == manager]
@@ -141,20 +124,14 @@ services:
         - "traefik.frontend.rule=Host:visualizer.jaws.biz"
         - "traefik.port=8080"
     networks:
-      # The internal should not be here. Remove later
-      - internal
       - proxy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 
 networks:
   internal:
-    # The overlay should not be here. Remove later
-    driver: overlay
   proxy:
     driver: overlay
-    # The external should not be here. Remove later
-    external: true
 
 volumes:
   mongo:
